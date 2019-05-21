@@ -163,6 +163,9 @@ static void
 uip_arp_update(u16_t *ipaddr, struct uip_eth_addr *ethaddr)
 {
   register struct arp_entry *tabptr;
+
+  //printf("uip_arp_update: ip %d.%d.%d.%d\n", uip_ipaddr1(ipaddr), uip_ipaddr2(ipaddr), uip_ipaddr3(ipaddr), uip_ipaddr4(ipaddr));
+
   /* Walk through the ARP mapping table and try to find an entry to
      update. If none is found, the IP -> MAC address mapping is
      inserted in the ARP table. */
@@ -235,7 +238,6 @@ uip_arp_update(u16_t *ipaddr, struct uip_eth_addr *ethaddr)
  * variable uip_len.
  */
 /*-----------------------------------------------------------------------------------*/
-#if 0
 void
 uip_arp_ipin(void)
 {
@@ -255,7 +257,7 @@ uip_arp_ipin(void)
 
   return;
 }
-#endif /* 0 */
+
 /*-----------------------------------------------------------------------------------*/
 /**
  * ARP processing for incoming ARP packets.
@@ -392,6 +394,8 @@ uip_arp_out(void)
     if(i == UIP_ARPTAB_SIZE) {
       /* The destination address was not in our ARP table, so we
 	 overwrite the IP packet with an ARP request. */
+	 
+	 //printf("uip_arp_out: ip %d.%d.%d.%d not found - send ARP request\n", uip_ipaddr1(IPBUF->destipaddr), uip_ipaddr2(IPBUF->destipaddr), uip_ipaddr3(IPBUF->destipaddr), uip_ipaddr4(IPBUF->destipaddr));
 
       memset(BUF->ethhdr.dest.addr, 0xff, 6);
       memset(BUF->dhwaddr.addr, 0x00, 6);

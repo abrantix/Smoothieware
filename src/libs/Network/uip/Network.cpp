@@ -8,6 +8,8 @@
 #include "Config.h"
 #include "SlowTicker.h"
 
+#include "I2C.h"
+
 #include "Network.h"
 #include "PublicDataRequest.h"
 #include "PlayerPublicAccess.h"
@@ -22,6 +24,7 @@
 #include "telnetd.h"
 #include "webserver.h"
 #include "dhcpc.h"
+#include "udpsvc.h"
 #include "sftpd.h"
 
 #ifndef NOPLAN9
@@ -41,6 +44,7 @@
 #define network_hostname_checksum CHECKSUM("hostname")
 #define network_ip_gateway_checksum CHECKSUM("ip_gateway")
 #define network_ip_mask_checksum CHECKSUM("ip_mask")
+#define network_port_checksum CHECKSUM("port")
 
 extern "C" void uip_log(char *m)
 {
@@ -129,6 +133,18 @@ void Network::on_module_loaded()
         return;
     }
 
+	mbed::I2C* i2c;
+
+	// I2C com to ArduinoRS485
+	i2c = new mbed::I2C(P0_27, P0_28);
+	i2c->frequency(20000);
+
+	i2c->start();
+	//read MAC address from I2C address 0x10
+	int macAddressOk = i2c->read(0x10, (char*)(mac_address), 6);
+	i2c->stop();
+	delete i2c;
+
     webserver_enabled = THEKERNEL->config->value( network_checksum, network_webserver_checksum, network_enable_checksum )->by_default(false)->as_bool();
     telnet_enabled = THEKERNEL->config->value( network_checksum, network_telnet_checksum, network_enable_checksum )->by_default(false)->as_bool();
     plan9_enabled = THEKERNEL->config->value( network_checksum, network_plan9_checksum, network_enable_checksum )->by_default(false)->as_bool();
@@ -139,15 +155,16 @@ void Network::on_module_loaded()
             printf("Network not started due to errors in config");
             return;
         }
-
-    } else {   // autogenerate
+    } 
+	else if(0 != macAddressOk)
+	{   // autogenerate from abrantix OUI and hashed serial
         uint32_t h = getSerialNumberHash();
-        mac_address[0] = 0x00;   // OUI
-        mac_address[1] = 0x1F;   // OUI
-        mac_address[2] = 0x11;   // OUI
-        mac_address[3] = 0x02;   // Openmoko allocation for smoothie board
-        mac_address[4] = 0x04;   // 04-14  03 bits -> chip id, 1 bits -> hashed serial
-        mac_address[5] = h & 0xFF; // 00-FF  8bits -> hashed serial
+        mac_address[0] = 0x14;   // Abrantix OUI
+        mac_address[1] = 0x07;   // Abrantix OUI
+        mac_address[2] = 0xE0;   // Abrantix OUI
+        mac_address[3] = 0xFF;   // Openmoko allocation for smoothie board
+        mac_address[4] = (h >> 8) & 0xFF;	// hashed serial, 2nd last byte
+        mac_address[5] = h & 0xFF;			// hashed serial, last byte
     }
 
     ethernet->set_mac(mac_address);
@@ -165,6 +182,12 @@ void Network::on_module_loaded()
                 printf("Invalid hostname: %s\n", s.c_str());
             }
         }
+		else
+		{
+			//autogenerate hostname (17 chars plus trailing 0)
+			hostname = new char[18];
+			snprintf(hostname, 18, "AXTT-PEM-%02X%02X%02X%02X", mac_address[2], mac_address[3], mac_address[4], mac_address[5]);
+		}
     } else {
         bool bad = false;
         use_dhcp = false;
@@ -302,7 +325,8 @@ void Network::setup_servers()
 
     if (telnet_enabled) {
         // Initialize the telnet server
-        Telnetd::init();
+		uint16_t telnet_port = THEKERNEL->config->value(network_checksum, network_telnet_checksum, network_port_checksum)->by_default(23)->as_number();
+        Telnetd::init(telnet_port);
         printf("Telnetd initialized\n");
     }
 
@@ -312,6 +336,11 @@ void Network::setup_servers()
         Plan9::init();
         printf("Plan9 initialized\n");
     }
+#endif
+
+#if UIP_CONF_UDP
+	udpsvc_init(mac_address, sizeof(mac_address), hostname, this->ipaddr);
+	printf("Udpsvc initialized\n");
 #endif
 
     // sftpd service, which is lazily created on reciept of first packet
@@ -465,16 +494,16 @@ void network_device_send()
 void Network::handlePacket(void)
 {
     if (uip_len > 0) {  /* received packet */
-        //printf("handlePacket: %d\n", uip_len);
+        //printf("handlePacket: in %d\n", uip_len);
 
         if (BUF->type == htons(UIP_ETHTYPE_IP)) { /* IP packet */
-            uip_arp_ipin();
             uip_input();
             /* If the above function invocation resulted in data that
                 should be sent out on the network, the global variable
                 uip_len is set to a value > 0. */
 
             if (uip_len > 0) {
+				//printf("handlePacket: out %d\n", uip_len);
                 uip_arp_out();
                 network_device_send();
             }

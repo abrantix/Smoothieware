@@ -45,9 +45,9 @@ endif
 
 # generate a git version string
 ifneq "$(OS)" "Windows_NT"
-DEFINES += -D__GITVERSIONSTRING__=\"$(shell ./generate-version.sh)\"
+DEFINES += -D__GITVERSIONSTRING__=\"$(shell ./generate-version.sh)-Abrantix-PEM\"
 else
-DEFINES += -D__GITVERSIONSTRING__=\"$(shell generate-version.bat)\"
+DEFINES += -D__GITVERSIONSTRING__=\"$(shell generate-version.bat)-Abrantix-PEM\"
 endif
 
 # use c++11 features for the checksums and set default baud rate for serial uart
@@ -70,13 +70,9 @@ ifneq "$(NODEFAULTEXCLUDES)" "1"
 
 ifeq "$(EXCLUDE_MODULES)" ""
 
-ifeq "$(CNC)" "1"
-# CNC build excludes these
-export EXCLUDE_MODULES = tools/filamentdetector tools/scaracal tools/temperaturecontrol tools/temperatureswitch tools/extruder
-else
-# 3D build excludes these
-export EXCLUDE_MODULES = tools/drillingcycles tools/spindle
-endif
+# Abrantix PEM exlude modules
+export EXCLUDE_MODULES = tools/drillingcycles tools/spindle tools/filamentdetector tools/scaracal tools/temperaturecontrol tools/temperatureswitch tools/extruder tools/laser tools/zprobe tools/toolmanager utils/panel utils/playled
+#utils/killbutton
 
 endif
 endif

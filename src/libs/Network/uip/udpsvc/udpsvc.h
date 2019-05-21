@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, Swedish Institute of Computer Science
+ * Copyright (c) 2019, Abrantix
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,47 +28,36 @@
  *
  * This file is part of the uIP TCP/IP stack
  *
- * @(#)$Id: dhcpc.h,v 1.3 2006/06/11 21:46:37 adam Exp $
  */
-#ifndef __DHCPC_H__
-#define __DHCPC_H__
+#ifndef __UDPSVC_H__
+#define __UDPSVC_H__
 
 #include "timer.h"
 #include "pt.h"
+#include "version.h"
 
-struct dhcpc_state {
+struct udpsvc_state {
   struct pt pt;
-  char state;
   struct uip_udp_conn *conn;
   struct timer timer;
-  u16_t ticks;
   const void *mac_addr;
   int mac_len;
   char *hostname;
-  u8_t serverid[4];
-
-  uint32_t lease_time;
-  uint32_t ipaddr;
-  uint32_t netmask;
-  uint32_t dnsaddr;
-  uint32_t default_router;
+  const void *ipaddr;
+  u16_t ticks;
 };
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void dhcpc_init(const void *mac_addr, int mac_len, char *hostname);
-void dhcpc_request(void);
+void udpsvc_init(const void *mac_addr, int mac_len, char *hostname, const void *ipaddr);
 
-void dhcpc_appcall(void);
-
-void dhcpc_configured(const struct dhcpc_state *s);
+void udpsvc_appcall(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-typedef struct dhcpc_state uip_udp_appstate_t;
 
-#endif /* __DHCPC_H__ */
+#endif /* __UDPSVC_H__ */

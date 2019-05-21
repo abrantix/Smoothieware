@@ -787,7 +787,8 @@ void uip_send(const void *data, int len);
  * \return The uip_udp_conn structure for the new connection or NULL
  * if no connection could be allocated.
  */
-struct uip_udp_conn *uip_udp_new(uip_ipaddr_t *ripaddr, u16_t rport);
+typedef void(*MsgHandler)(void);
+struct uip_udp_conn *uip_udp_new(uip_ipaddr_t *ripaddr, u16_t rport, MsgHandler msghandler);
 
 /**
  * Removed a UDP connection.
@@ -1243,6 +1244,9 @@ struct uip_udp_conn {
   u16_t lport;        /**< The local port number in network byte order. */
   u16_t rport;        /**< The remote port number in network byte order. */
   u8_t  ttl;          /**< Default time-to-live. */
+  
+  /** Function to process incoming messages **/
+  MsgHandler msghandler;
 
   /** The application state. */
   uip_udp_appstate_t appstate;

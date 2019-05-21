@@ -45,7 +45,7 @@ public:
     Telnetd();
     ~Telnetd();
 
-    static void init(void);
+    static void init(uint16_t port);
     static void appcall(void);
 
     void output_prompt(const char *str);

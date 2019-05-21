@@ -490,7 +490,7 @@ again:
 /*---------------------------------------------------------------------------*/
 #if UIP_UDP
 struct uip_udp_conn *
-uip_udp_new(uip_ipaddr_t *ripaddr, u16_t rport)
+uip_udp_new(uip_ipaddr_t *ripaddr, u16_t rport, MsgHandler msghandler)
 {
     register struct uip_udp_conn *conn;
 
@@ -529,6 +529,7 @@ again:
         uip_ipaddr_copy(&conn->ripaddr, ripaddr);
     }
     conn->ttl = UIP_TTL;
+	conn->msghandler = msghandler;
 
     return conn;
 }
@@ -836,7 +837,7 @@ uip_process(u8_t flag)
             uip_sappdata = uip_appdata = &uip_buf[UIP_LLH_LEN + UIP_IPUDPH_LEN];
             uip_len = uip_slen = 0;
             uip_flags = UIP_POLL;
-            UIP_UDP_APPCALL();
+			uip_udp_conn->msghandler();
             goto udp_send;
         } else {
             goto drop;
@@ -1144,20 +1145,25 @@ udp_input:
             goto udp_found;
         }
     }
-    UIP_LOG("udp: no matching connection found");
+    //printf("udp: no matching connection found (src %d dst %d)", HTONS(UDPBUF->srcport), HTONS(UDPBUF->destport));
     goto drop;
 
 udp_found:
+	//update arp cache
+	uip_arp_ipin();
+
     uip_conn = NULL;
     uip_flags = UIP_NEWDATA;
     uip_sappdata = uip_appdata = &uip_buf[UIP_LLH_LEN + UIP_IPUDPH_LEN];
     uip_slen = 0;
-    UIP_UDP_APPCALL();
+	/* use specific function ptr according given "connection" */
+	uip_udp_conn->msghandler();
 udp_send:
     if (uip_slen == 0) {
         goto drop;
     }
-    uip_len = uip_slen + UIP_IPUDPH_LEN;
+	DEBUG_PRINTF("udp: send %d bytes\n", uip_slen);
+	uip_len = uip_slen + UIP_IPUDPH_LEN;
 
 #if UIP_CONF_IPV6
     /* For IPv6, the IP length field does not include the IPv6 IP header
@@ -1175,13 +1181,25 @@ udp_send:
     UDPBUF->udplen = HTONS(uip_slen + UIP_UDPH_LEN);
     UDPBUF->udpchksum = 0;
 
-    BUF->srcport  = uip_udp_conn->lport;
-    BUF->destport = uip_udp_conn->rport;
+	if (uip_ipaddr_cmp(uip_udp_conn->ripaddr, all_zeroes_addr))
+	{
+		/* no explicit host configured - send back to requesting host and port */
+		BUF->destport = UDPBUF->srcport;
+		uip_ipaddr_copy(BUF->destipaddr, BUF->srcipaddr);
+	}
+	else
+	{
+		BUF->destport = uip_udp_conn->rport;
+		uip_ipaddr_copy(BUF->destipaddr, uip_udp_conn->ripaddr);
+	}
 
-    uip_ipaddr_copy(BUF->srcipaddr, uip_hostaddr);
-    uip_ipaddr_copy(BUF->destipaddr, uip_udp_conn->ripaddr);
+	BUF->srcport = uip_udp_conn->lport;
+	uip_ipaddr_copy(BUF->srcipaddr, uip_hostaddr);
+
 
     uip_appdata = &uip_buf[UIP_LLH_LEN + UIP_IPTCPH_LEN];
+
+	DEBUG_PRINTF("udp: sending response to %d.%d.%d.%d Port %d\n", uip_ipaddr1(BUF->destipaddr), uip_ipaddr2(BUF->destipaddr), uip_ipaddr3(BUF->destipaddr), uip_ipaddr4(BUF->destipaddr), HTONS(BUF->destport));
 
 #if UIP_UDP_CHECKSUMS
     /* Calculate UDP checksum. */
@@ -1871,6 +1889,7 @@ tcp_send_noconn:
     BUF->tcpchksum = ~(uip_tcpchksum());
 
 ip_send_nolen:
+	DEBUG_PRINTF("ip_send_nolen\n");
 
 #if UIP_CONF_IPV6
     BUF->vtc = 0x60;
@@ -1886,12 +1905,12 @@ ip_send_nolen:
     /* Calculate IP checksum. */
     BUF->ipchksum = 0;
     BUF->ipchksum = ~(uip_ipchksum());
-    DEBUG_PRINTF("uip ip_send_nolen: chkecum 0x%04x\n", uip_ipchksum());
+	DEBUG_PRINTF("uip ip_send_nolen: chkecum 0x%04x\n", uip_ipchksum());
 #endif /* UIP_CONF_IPV6 */
 
     UIP_STAT(++uip_stat.tcp.sent);
 send:
-    DEBUG_PRINTF("Sending packet with length %d (%d)\n", uip_len,
+	DEBUG_PRINTF("Sending packet with length %d (%d)\n", uip_len,
                  (BUF->len[0] << 8) | BUF->len[1]);
 
     UIP_STAT(++uip_stat.ip.sent);
