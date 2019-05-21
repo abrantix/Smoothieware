@@ -24,7 +24,8 @@ public:
     // accessed from C
     Sftpd *sftpd;
     struct {
-        bool webserver_enabled:1;
+		uint16_t telnet_port;
+		bool webserver_enabled:1;
         bool telnet_enabled:1;
         bool plan9_enabled:1;
         bool use_dhcp:1;

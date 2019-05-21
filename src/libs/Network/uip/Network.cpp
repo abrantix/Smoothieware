@@ -145,6 +145,7 @@ void Network::on_module_loaded()
 	i2c->stop();
 	delete i2c;
 
+	telnet_port = THEKERNEL->config->value(network_checksum, network_telnet_checksum, network_port_checksum)->by_default(23)->as_number();
     webserver_enabled = THEKERNEL->config->value( network_checksum, network_webserver_checksum, network_enable_checksum )->by_default(false)->as_bool();
     telnet_enabled = THEKERNEL->config->value( network_checksum, network_telnet_checksum, network_enable_checksum )->by_default(false)->as_bool();
     plan9_enabled = THEKERNEL->config->value( network_checksum, network_plan9_checksum, network_enable_checksum )->by_default(false)->as_bool();
@@ -325,9 +326,8 @@ void Network::setup_servers()
 
     if (telnet_enabled) {
         // Initialize the telnet server
-		uint16_t telnet_port = THEKERNEL->config->value(network_checksum, network_telnet_checksum, network_port_checksum)->by_default(23)->as_number();
         Telnetd::init(telnet_port);
-        printf("Telnetd initialized\n");
+        printf("Telnetd initialized on port %d\n", telnet_port);
     }
 
 #ifndef NOPLAN9
@@ -438,11 +438,6 @@ extern "C" void app_select_appcall(void)
         case HTONS(80):
             if (theNetwork->webserver_enabled) httpd_appcall();
             break;
-
-        case HTONS(23):
-            if (theNetwork->telnet_enabled) Telnetd::appcall();
-            break;
-
 #ifndef NOPLAN9
         case HTONS(564):
             if (theNetwork->plan9_enabled) Plan9::appcall();
@@ -459,8 +454,16 @@ extern "C" void app_select_appcall(void)
             break;
 
         default:
-            printf("unknown app for port: %d\n", uip_conn->lport);
-
+			if (HTONS(theNetwork->telnet_port) == uip_conn->lport)
+			{
+				if (theNetwork->telnet_enabled) Telnetd::appcall();
+			}
+			else
+			{
+				printf("unknown app for port: %d\n", uip_conn->lport);
+			}
+			
+			break;
     }
 }
 

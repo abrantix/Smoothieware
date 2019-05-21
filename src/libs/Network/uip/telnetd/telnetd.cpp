@@ -424,5 +424,5 @@ void Telnetd::appcall(void)
 // static
 void Telnetd::init(uint16_t port)
 {
-    uip_listen(port);
+    uip_listen(HTONS(port));
 }
