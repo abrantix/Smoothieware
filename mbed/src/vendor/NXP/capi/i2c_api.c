@@ -249,28 +249,31 @@ void i2c_frequency(i2c_t *obj, int hz) {
 // because something is setup wrong (e.g. wiring), and we don't need to programatically
 // check for that
 
-int i2c_read(i2c_t *obj, int address, char *data, int length, int stop) {
+int i2c_read(i2c_t *obj, int address, char *data, int *length, int stop) {
     int count, status;
 
     status = i2c_start(obj);
 
     if ((status != 0x10) && (status != 0x08)) {
         i2c_stop(obj);
+		*length = 0;
         return status;
     }
 
     status = i2c_do_write(obj, (address | 0x01));
     if (status != 0x40) {
         i2c_stop(obj);
+		*length = 0;
         return status;
     }
 
     // Read in all except last byte
-    for (count = 0; count < (length - 1); count++) {
+    for (count = 0; count < (*length - 1); count++) {
         int value = i2c_do_read(obj, 0);
         status = i2c_status(obj);
         if (status != 0x50) {
             i2c_stop(obj);
+			*length = count;
             return status;
         }
         data[count] = (char) value;
@@ -285,7 +288,7 @@ int i2c_read(i2c_t *obj, int address, char *data, int length, int stop) {
     }
 
     data[count] = (char) value;
-
+	*length = count;
     // If not repeated start, send stop.
     if (stop) {
         if(i2c_stop(obj) == 1)

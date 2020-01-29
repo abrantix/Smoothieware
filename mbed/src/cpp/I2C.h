@@ -83,7 +83,7 @@ public:
      *       0 on success (ack),
      *   non-0 on failure (nack)
      */
-    int read(int address, char *data, int length, bool repeated = false);
+    int read(int address, char *data, int *length, bool repeated = false);
 
     /** Read a single byte from the I2C bus
      *

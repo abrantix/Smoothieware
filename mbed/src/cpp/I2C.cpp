@@ -62,7 +62,7 @@ int I2C::write(int data) {
 }
 
 // read - Master Reciever Mode
-int I2C::read(int address, char* data, int length, bool repeated) {
+int I2C::read(int address, char* data, int *length, bool repeated) {
     aquire();
 
     int stop = (repeated) ? 0 : 1;

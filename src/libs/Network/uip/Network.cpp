@@ -8,7 +8,7 @@
 #include "Config.h"
 #include "SlowTicker.h"
 
-#include "I2C.h"
+#include "libs/ServoController.h"
 
 #include "Network.h"
 #include "PublicDataRequest.h"
@@ -26,6 +26,7 @@
 #include "dhcpc.h"
 #include "udpsvc.h"
 #include "sftpd.h"
+#include "utils.h"
 
 #ifndef NOPLAN9
 #include "plan9.h"
@@ -133,17 +134,16 @@ void Network::on_module_loaded()
         return;
     }
 
-	mbed::I2C* i2c;
+	printf("Wait some time to get ServoController ready\n");
+	safe_delay_ms(3000);
 
-	// I2C com to ArduinoRS485
-	i2c = new mbed::I2C(P0_27, P0_28);
-	i2c->frequency(20000);
-
-	i2c->start();
-	//read MAC address from I2C address 0x10
-	int macAddressOk = i2c->read(0x10, (char*)(mac_address), 6);
-	i2c->stop();
-	delete i2c;
+	printf("Get MAC address from ServoController\n");
+	int i2cError = ServoControllerGetMacAddress((char*)(mac_address), 6);
+	if (0 == memcmp("\x14\x07\xEF\xFF\xFF\xFF", mac_address, 6))
+	{
+		printf("Fallback: No MAC address set in ServoController\n");
+		i2cError = -1;
+	}
 
 	telnet_port = THEKERNEL->config->value(network_checksum, network_telnet_checksum, network_port_checksum)->by_default(23)->as_number();
     webserver_enabled = THEKERNEL->config->value( network_checksum, network_webserver_checksum, network_enable_checksum )->by_default(false)->as_bool();
@@ -152,18 +152,19 @@ void Network::on_module_loaded()
     string mac = THEKERNEL->config->value( network_checksum, network_mac_override_checksum )->by_default("")->as_string();
     if (mac.size() == 17 ) { // parse mac address
         if (!parse_ip_str(mac, mac_address, 6, 16, ':')) {
-            printf("Invalid MAC address: %s\n", mac.c_str());
-            printf("Network not started due to errors in config");
+			printf("Invalid MAC address: %s\n", mac.c_str());
+			printf("Network not started due to errors in config");
             return;
         }
     } 
-	else if(0 != macAddressOk)
+	else if(0 != i2cError)
 	{   // autogenerate from abrantix OUI and hashed serial
+		printf("Fallback: Autogenerate MAC address from board serial\n");
         uint32_t h = getSerialNumberHash();
         mac_address[0] = 0x14;   // Abrantix OUI
         mac_address[1] = 0x07;   // Abrantix OUI
         mac_address[2] = 0xE0;   // Abrantix OUI
-        mac_address[3] = 0xFF;   // Openmoko allocation for smoothie board
+        mac_address[3] = 0xFF;   // fixed value
         mac_address[4] = (h >> 8) & 0xFF;	// hashed serial, 2nd last byte
         mac_address[5] = h & 0xFF;			// hashed serial, last byte
     }
@@ -180,7 +181,7 @@ void Network::on_module_loaded()
                 hostname = new char [s.length() + 1];
                 strcpy(hostname, s.c_str());
             }else{
-                printf("Invalid hostname: %s\n", s.c_str());
+				printf("Invalid hostname: %s\n", s.c_str());
             }
         }
 		else
@@ -193,21 +194,21 @@ void Network::on_module_loaded()
         bool bad = false;
         use_dhcp = false;
         if (!parse_ip_str(s, ipaddr, 4)) {
-            printf("Invalid IP address: %s\n", s.c_str());
+			printf("Invalid IP address: %s\n", s.c_str());
             bad = true;
         }
         s = THEKERNEL->config->value( network_checksum, network_ip_mask_checksum )->by_default("255.255.255.0")->as_string();
         if (!parse_ip_str(s, ipmask, 4)) {
-            printf("Invalid IP Mask: %s\n", s.c_str());
+			printf("Invalid IP Mask: %s\n", s.c_str());
             bad = true;
         }
         s = THEKERNEL->config->value( network_checksum, network_ip_gateway_checksum )->by_default("192.168.1.254")->as_string();
         if (!parse_ip_str(s, ipgw, 4)) {
-            printf("Invalid IP gateway: %s\n", s.c_str());
+			printf("Invalid IP gateway: %s\n", s.c_str());
             bad = true;
         }
         if (bad) {
-            printf("Network not started due to errors in config");
+			printf("Network not started due to errors in config");
             return;
         }
     }

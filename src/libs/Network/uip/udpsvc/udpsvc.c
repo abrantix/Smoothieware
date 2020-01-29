@@ -36,11 +36,13 @@
 #include "udpsvc.h"
 #include "timer.h"
 #include "pt.h"
+#include "libs/ServoController.h"
 
 #if UIP_CONF_UDP
 
 #define ntohl(a) ((((a) >> 24) & 0x000000FF) | (((a) >> 8) & 0x0000FF00) | (((a) << 8) & 0x00FF0000) | (((a) << 24) & 0xFF000000))
 static struct udpsvc_state s __attribute__ ((section ("AHBSRAM1")));
+
 
 /* UDP Frame definition:
   { MAGIC[8]  Command[2] DataLength[2] Data[0..512]}
@@ -85,6 +87,7 @@ PT_THREAD(handle_udp(void))
 {
     PT_BEGIN(&s.pt);
 
+	int setMacError;
 	(void)PT_YIELD_FLAG; // avoid warning unused variable
 
 	if (uip_newdata())
@@ -108,7 +111,30 @@ PT_THREAD(handle_udp(void))
 
 				m->Header.DataLength = 12;
 				break;
+			
+			case COMMAND_SET_MAC_ADDRESS:
+				setMacError = -1;
+				if (6 == m->Header.DataLength)
+				{
+					setMacError = ServoControllerSetMacAddress((char*)(m->Data), 6);
+				}
+				else
+				{
+					printf("given MAC address must have length 6\n");
+				}
+				if (setMacError)
+				{
+					printf("I2C error %d while setting MAC address\n", setMacError);
+					m->Header.Command = COMMAND_ERROR;
+					m->Data[0] = ERROR_COMMAND_SYNTAX;
+					m->Header.DataLength = 1;
+				}
+				break;
+			
 			default:
+				m->Header.Command = COMMAND_ERROR;
+				m->Data[0] = ERROR_COMMAND_UNKNOWN;
+				m->Header.DataLength = 1;
 				break;
 			}
 
