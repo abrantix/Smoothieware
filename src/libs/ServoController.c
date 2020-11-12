@@ -15,14 +15,6 @@
 #include <string.h>
 
 
-/* Forward declarations */
-
-int ServoControllerWriteMessage(PServoControllerMessage message);
-int ServoControllerReadMessage(PServoControllerMessage message);
-
-
-
-
 int ServoControllerSetMacAddress(char* data, int length)
 {
 	printf("Write MAC address to ServoController\n");
@@ -78,9 +70,31 @@ int ServoControllerGetMacAddress(char* data, int length)
 	return i2cError;
 }
 
+int ServoControllerIsBusy(int * isBusy)
+{
+	*isBusy = 0;
+
+	ServoControllerMessage message;
+
+	message.DataLength = 0;
+	message.Command = SERVO_CONTROLLER_COMMAND_IS_BUSY;
+
+	int i2cError = ServoControllerWriteMessage(&message);
+	if (0 == i2cError)
+	{
+		message.DataLength = 1;
+		i2cError = ServoControllerReadMessage(&message);
+	}
+	if (0 == i2cError)
+	{
+		*isBusy = !!message.Data[0];
+	}
+	return i2cError;
+}
 
 int ServoControllerWriteMessage(PServoControllerMessage message)
 {
+	printf("Write message with length %d to ServoController\n", message->DataLength);
 	int bufferLength = 2 + message->DataLength;
 	int i2cError = I2CControllerWrite(ServoControllerI2CAddress, (char*)(&message->Command), bufferLength);
 	return i2cError;
@@ -95,13 +109,13 @@ int ServoControllerReadMessage(PServoControllerMessage message)
 	if (i2cError)
 	{
 		printf("Error %d while reading I2C\n", i2cError);
-		return;
+		return -1;
 	}
 
 	if (requestedCommand != message->Command)
 	{
 		printf("Expected command %d but got %d\n", requestedCommand, message->Command);
-		return -1;
+		return -99;
 	}
 
 	return i2cError;

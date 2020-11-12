@@ -7,6 +7,7 @@
 
 #include "libs/Kernel.h"
 
+#include "modules/tools/servo/Servo.h"
 #include "modules/tools/laser/Laser.h"
 #include "modules/tools/spindle/SpindleMaker.h"
 #include "modules/tools/extruder/ExtruderMaker.h"
@@ -189,7 +190,10 @@ void init() {
     #ifndef NO_UTILS_MOTORDRIVERCONTROL
     kernel->add_module( new MotorDriverControl(0) );
     #endif
-    // Create and initialize USB stuff
+	#ifndef NO_UTILS_SERVO
+	kernel->add_module(new Servo(0));
+	#endif
+	// Create and initialize USB stuff
     u.init();
 
 #ifdef DISABLEMSD

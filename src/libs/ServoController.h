@@ -17,9 +17,10 @@
 /* ServoControll Command defines */
 typedef enum _SERVO_CONTROLLER_COMMAND {
 	SERVO_CONTROLLER_COMMAND_INFO = 1,
-	SERVO_CONTROLLER_COMMAND_SET_MAC_ADDRESS,
-	SERVO_CONTROLLER_COMMAND_ERROR,
-	SERVO_CONTROLLER_COMMAND_GET_MAC_ADDRESS,
+	SERVO_CONTROLLER_COMMAND_SET_MAC_ADDRESS = 2,
+	SERVO_CONTROLLER_COMMAND_ERROR = 3,
+	SERVO_CONTROLLER_COMMAND_GET_MAC_ADDRESS = 4,
+	SERVO_CONTROLLER_COMMAND_IS_BUSY = 9,
 } SERVO_CONTROLLER_COMMAND;
 
 /* ServoController I2C Frame definition:
@@ -27,7 +28,7 @@ typedef enum _SERVO_CONTROLLER_COMMAND {
 */
 typedef struct _ServoControllerMessage {
 	char Command;
-	char DataLength;
+	unsigned char DataLength;
 	char Data[30];
 } ServoControllerMessage, * PServoControllerMessage;
 
@@ -38,6 +39,9 @@ extern "C" {
 
 	int ServoControllerSetMacAddress(char* data, int length);
 	int ServoControllerGetMacAddress(char* data, int length);
+	int ServoControllerWriteMessage(PServoControllerMessage message);
+	int ServoControllerReadMessage(PServoControllerMessage message);
+	int ServoControllerIsBusy(int* isBusy);
 
 #ifdef __cplusplus
 }
