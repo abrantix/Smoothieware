@@ -116,7 +116,7 @@ Robot::Robot()
     memset(this->compensated_machine_position, 0, sizeof compensated_machine_position);
     this->arm_solution = NULL;
     seconds_per_minute = 60.0F;
-    this->clearToolOffset();
+    this->clear_tool_offset();
     this->compensationTransform = nullptr;
     this->get_e_scale_fnc= nullptr;
     this->wcs_offsets.fill(wcs_t(0.0F, 0.0F, 0.0F));
@@ -454,8 +454,11 @@ void Robot::check_max_actuator_speeds()
         if(actuators[i]->is_extruder()) continue; //extruders are not included in this check
 
         float step_freq = actuators[i]->get_max_rate() * actuators[i]->get_steps_per_mm();
-        if (step_freq > THEKERNEL->base_stepping_frequency) {
-            actuators[i]->set_max_rate(floorf(THEKERNEL->base_stepping_frequency / actuators[i]->get_steps_per_mm()));
+        if (step_freq >= THEKERNEL->base_stepping_frequency) {
+            float s= floorf(THEKERNEL->base_stepping_frequency / actuators[i]->get_steps_per_mm());
+            // derate by 1% so it is not right up against the maximum
+            s -= (s*0.01);
+            actuators[i]->set_max_rate(s);
             THEKERNEL->streams->printf("WARNING: actuator %d rate exceeds base_stepping_frequency * ..._steps_per_mm: %f, setting to %f\n", i, step_freq, actuators[i]->get_max_rate());
         }
     }
@@ -1223,7 +1226,9 @@ void Robot::reset_compensated_machine_position()
         // we want to leave it where we have set Z, not where it ended up AFTER compensation so
         // this should correct the Z position to the machine_position
         is_g123= false; // we don't want the laser to fire
-        append_milestone(machine_position, this->seek_rate / 60.0F);
+        if(!append_milestone(machine_position, this->seek_rate / 60.0F)) {
+            reset_axis_position(machine_position[X_AXIS], machine_position[Y_AXIS], machine_position[Z_AXIS]);
+        }
     }
 }
 
@@ -1747,12 +1752,12 @@ void Robot::select_plane(uint8_t axis_0, uint8_t axis_1, uint8_t axis_2)
     this->plane_axis_2 = axis_2;
 }
 
-void Robot::clearToolOffset()
+void Robot::clear_tool_offset()
 {
     this->tool_offset= wcs_t(0,0,0);
 }
 
-void Robot::setToolOffset(const float offset[3])
+void Robot::set_tool_offset(const float offset[3])
 {
     this->tool_offset= wcs_t(offset[0], offset[1], offset[2]);
 }

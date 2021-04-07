@@ -159,9 +159,6 @@
  */
 TMC26X::TMC26X(std::function<int(uint8_t *b, int cnt, uint8_t *r)> spi, char d) : spi(spi), designator(d)
 {
-    connection_method = StepstickParameters::SPI;
-    max_current= 3000;
-    
     //we are not started yet
     started = false;
     //by default cool step is not enabled
@@ -208,16 +205,16 @@ void TMC26X::init(uint16_t cs)
     //setSpreadCycleChopper(5, 54, 4, 0, 0);
 #endif
 
-    set_enable(false);
+    setEnabled(false);
 
     //set a nice microstepping value
-    set_microsteps(DEFAULT_MICROSTEPPING_VALUE);
+    setMicrosteps(DEFAULT_MICROSTEPPING_VALUE);
 
     // set stallguard to a conservative value so it doesn't trigger immediately
     setStallGuardThreshold(10, 1);
 }
 
-void TMC26X::set_current(uint16_t current)
+void TMC26X::setCurrent(unsigned int current)
 {
     uint8_t current_scaling = 0;
     //calculate the current scaling from the max current setting (in mA)
@@ -255,7 +252,7 @@ void TMC26X::set_current(uint16_t current)
     }
 }
 
-unsigned int TMC26X::get_current(void)
+unsigned int TMC26X::getCurrent(void)
 {
     //we calculate the current according to the datasheet to be on the safe side
     //this is not the fastest but the most accurate and illustrative way
@@ -317,7 +314,7 @@ int8_t TMC26X::getStallGuardFilter(void)
  * any value in between will be mapped to the next smaller value
  * 0 and 1 set the motor in full step mode
  */
-int TMC26X::set_microsteps(int number_of_steps)
+void TMC26X::setMicrosteps(int number_of_steps)
 {
     long setting_pattern;
     //poor mans log
@@ -360,14 +357,12 @@ int TMC26X::set_microsteps(int number_of_steps)
     if (started) {
         send262(driver_control_register_value);
     }
-    
-    return get_microsteps();
 }
 
 /*
  * returns the effective number of microsteps at the moment
  */
-int TMC26X::get_microsteps(void)
+int TMC26X::getMicrosteps(void)
 {
     return microsteps;
 }
@@ -684,7 +679,7 @@ uint8_t TMC26X::getCoolStepLowerCurrentLimit()
     return (uint8_t)((cool_step_register_value & MINIMUM_CURRENT_FOURTH) >> 15);
 }
 
-void TMC26X::set_enable(bool enabled)
+void TMC26X::setEnabled(bool enabled)
 {
     //delete the t_off in the chopper config to get sure
     chopper_config_register &= ~(T_OFF_PATTERN);
@@ -869,9 +864,9 @@ bool TMC26X::isCurrentScalingHalfed()
     }
 }
 
-void TMC26X::dump_status(StreamOutput *stream)
+void TMC26X::dumpStatus(StreamOutput *stream, bool readable)
 {
-    if (!this->write_only) {
+    if (readable) {
         stream->printf("designator %c, Chip type TMC26X\n", designator);
 
         check_error_status_bits(stream);
@@ -890,10 +885,10 @@ void TMC26X::dump_status(StreamOutput *stream)
         value = getCurrentStallGuardReading();
         stream->printf("Stall Guard value: %d\n", value);
 
-        stream->printf("Current setting: %dmA\n", get_current());
+        stream->printf("Current setting: %dmA\n", getCurrent());
         stream->printf("Coolstep current: %dmA\n", getCoolstepCurrent());
 
-        stream->printf("Microsteps: 1/%d\n", get_microsteps());
+        stream->printf("Microsteps: 1/%d\n", microsteps);
 
         stream->printf("Register dump:\n");
         stream->printf(" driver control register: %08lX(%ld)\n", driver_control_register_value, driver_control_register_value);
@@ -914,7 +909,7 @@ void TMC26X::dump_status(StreamOutput *stream)
             stream->printf("#s,");
         }
         stream->printf("d%d,", THEROBOT->actuators[0]->which_direction() ? -1 : 1);
-        stream->printf("c%u,m%d,", get_current(), get_microsteps());
+        stream->printf("c%u,m%d,", getCurrent(), getMicrosteps());
         // stream->printf('S');
         // stream->printf(tmc26XStepper.getSpeed(), DEC);
         stream->printf("t%d,f%d,", getStallGuardThreshold(), getStallGuardFilter());
@@ -1028,7 +1023,7 @@ bool TMC26X::check_error_status_bits(StreamOutput *stream)
     return error;
 }
 
-bool TMC26X::check_alarm()
+bool TMC26X::checkAlarm()
 {
     return check_error_status_bits(THEKERNEL->streams);
 }
@@ -1036,7 +1031,7 @@ bool TMC26X::check_alarm()
 // sets a raw register to the value specified, for advanced settings
 // register 255 writes them, 0 displays what registers are mapped to what
 // FIXME status registers not reading back correctly, check docs
-bool TMC26X::set_raw_register(StreamOutput *stream, uint32_t reg, uint32_t val)
+bool TMC26X::setRawRegister(StreamOutput *stream, uint32_t reg, uint32_t val)
 {
     switch(reg) {
         case 255:

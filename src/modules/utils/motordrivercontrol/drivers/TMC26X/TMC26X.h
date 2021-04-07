@@ -34,15 +34,13 @@
 #include <map>
 #include <bitset>
 
-#include "../StepperDrv.h"
-
 class StreamOutput;
 
 /*!
  * \class TMC26X
  * \brief Class representing a TMC26X stepper driver
  */
-class TMC26X : public StepperDrv 
+class TMC26X
 {
 public:
     /*!
@@ -81,7 +79,7 @@ public:
      * If you give any other value it will be rounded to the next smaller number (3 would give a microstepping of 2).
      * You can always check the current microstepping with getMicrosteps().
      */
-    int set_microsteps(int number_of_steps);
+    void setMicrosteps(int number_of_steps);
 
     /*!
      * \brief returns the effective current number of microsteps selected.
@@ -89,9 +87,9 @@ public:
      * This function always returns the effective number of microsteps.
      * This can be a bit different than the micro steps set in setMicrosteps() since it is rounded to 2^i.
      *
-     * \sa set_microsteps()
+     * \sa setMicrosteps()
      */
-    int get_microsteps(void);
+    int getMicrosteps(void);
 
     void setStepInterpolation(int8_t value);
     void setDoubleEdge(int8_t value);
@@ -168,7 +166,7 @@ public:
      * \param current the maximum motor current in mA
      * \sa getCurrent(), getCurrentCurrent()
      */
-    void set_current(uint16_t current);
+    void setCurrent(unsigned int current);
 
     /*!
      * \brief readout the motor maximum current in mA (1000 is an Amp)
@@ -176,7 +174,7 @@ public:
      *\return the maximum motor current in milli amps
      * \sa getCurrentCurrent()
      */
-    unsigned int get_current(void);
+    unsigned int getCurrent(void);
 
     /*!
      * \brief set the StallGuard threshold in order to get sensible StallGuard readings.
@@ -378,7 +376,7 @@ public:
      *\brief enables or disables the motor driver bridges. If disabled the motor can run freely. If enabled not.
      *\param enabled a bool value true if the motor should be enabled, false otherwise.
      */
-    void set_enable(bool enabled);
+    void setEnabled(bool enabled);
 
     /*!
      *\brief checks if the output bridges are enabled. If the bridges are not enabled the motor can run freely
@@ -402,9 +400,9 @@ public:
      * \brief Prints out all the information that can be found in the last status read out - it does not force a status readout.
      * The result is printed via Serial
      */
-    void dump_status(StreamOutput *stream);
-    bool set_raw_register(StreamOutput *stream, uint32_t reg, uint32_t val);
-    bool check_alarm();
+    void dumpStatus(StreamOutput *stream, bool readable= true);
+    bool setRawRegister(StreamOutput *stream, uint32_t reg, uint32_t val);
+    bool checkAlarm();
 
     using options_t= std::map<char,int>;
 
@@ -448,7 +446,6 @@ private:
 
     uint8_t cool_step_lower_threshold; // we need to remember the threshold to enable and disable the CoolStep feature
     char designator;
-    
-    bool write_only = false;
+
 };
 

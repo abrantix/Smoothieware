@@ -1,9 +1,9 @@
 #ifndef _VERSION__H
 #define _VERSION__H
 
-#define VERSION_STRING "02.04"
+#define VERSION_STRING "02.05"
 #define MAJOR_VERSION 0x02
-#define MINOR_VERSION 0x04
+#define MINOR_VERSION 0x05
 
 #ifdef __cplusplus
 class Version {
